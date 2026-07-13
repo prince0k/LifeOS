@@ -15,6 +15,16 @@ The purpose of this document is to record the release history, version bumps, an
 
 ## 2. Release History
 
+### [1.0.0-alpha.1] — 2026-07-13
+Initial codebase configuration, package integration, secure database scaffold, and unit test suites.
+
+#### Added
+- Initialized Flutter 3.44.6 stable workspace.
+- Configured `pubspec.yaml` with third-party components (Hive, Riverpod, secure storage, fl_chart, google_fonts).
+- Created 6 core Hive database models and generated code adapters.
+- Created `DatabaseService` supporting on-device hardware-backed key derivation and unencrypted/encrypted box partitions.
+- Created `database_service_test.dart` verification suite.
+
 ### [1.0.0-docs] — 2026-07-13
 Centralized documentation release. All core design, technical engine, functional requirements, and guidelines files created and finalized.
 
