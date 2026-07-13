@@ -8,6 +8,7 @@ class HabitsState {
   final int cigaretteCount;
   final int stepCount;
   final int pornRecoveryDays;
+  final int totalScreenTime;
   final bool isInitialized;
 
   HabitsState({
@@ -15,6 +16,7 @@ class HabitsState {
     required this.cigaretteCount,
     required this.stepCount,
     required this.pornRecoveryDays,
+    required this.totalScreenTime,
     required this.isInitialized,
   });
 
@@ -23,6 +25,7 @@ class HabitsState {
     int? cigaretteCount,
     int? stepCount,
     int? pornRecoveryDays,
+    int? totalScreenTime,
     bool? isInitialized,
   }) {
     return HabitsState(
@@ -30,6 +33,7 @@ class HabitsState {
       cigaretteCount: cigaretteCount ?? this.cigaretteCount,
       stepCount: stepCount ?? this.stepCount,
       pornRecoveryDays: pornRecoveryDays ?? this.pornRecoveryDays,
+      totalScreenTime: totalScreenTime ?? this.totalScreenTime,
       isInitialized: isInitialized ?? this.isInitialized,
     );
   }
@@ -44,6 +48,7 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
           cigaretteCount: 0,
           stepCount: 0,
           pornRecoveryDays: 0,
+          totalScreenTime: 0,
           isInitialized: false,
         )) {
     _loadTodayHabits();
@@ -65,6 +70,7 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
         cigaretteCount: todayLog.smokingCount,
         stepCount: steps,
         pornRecoveryDays: pornRecovery,
+        totalScreenTime: todayLog.totalScreenTimeMinutes,
         isInitialized: true,
       );
     } else {
@@ -73,6 +79,7 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
         cigaretteCount: 0,
         stepCount: 0,
         pornRecoveryDays: 0,
+        totalScreenTime: 0,
         isInitialized: true,
       );
     }
@@ -88,9 +95,12 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
     if (existingLog != null) {
       final Map<String, int> updatedAppScreenTimes = Map.from(existingLog.appScreenTimes);
       int updatedSmokingCount = existingLog.smokingCount;
+      int updatedScreenTime = existingLog.totalScreenTimeMinutes;
 
       if (habitName == 'cigarettes') {
         updatedSmokingCount = (updatedSmokingCount + delta).clamp(0, 99999);
+      } else if (habitName == 'screen_time') {
+        updatedScreenTime = (updatedScreenTime + delta).clamp(0, 999999);
       } else {
         final currentVal = updatedAppScreenTimes[habitName] ?? 0;
         updatedAppScreenTimes[habitName] = (currentVal + delta).clamp(0, 999999);
@@ -100,15 +110,18 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
         date: todayKey,
         smokingCount: updatedSmokingCount,
         detailedSmokingLogs: existingLog.detailedSmokingLogs,
-        totalScreenTimeMinutes: existingLog.totalScreenTimeMinutes,
+        totalScreenTimeMinutes: updatedScreenTime,
         appScreenTimes: updatedAppScreenTimes,
       );
     } else {
       final Map<String, int> appScreenTimes = {};
       int smokingCount = 0;
+      int screenTime = 0;
 
       if (habitName == 'cigarettes') {
         smokingCount = delta.clamp(0, 99999);
+      } else if (habitName == 'screen_time') {
+        screenTime = delta.clamp(0, 999999);
       } else {
         appScreenTimes[habitName] = delta.clamp(0, 999999);
       }
@@ -117,7 +130,7 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
         date: todayKey,
         smokingCount: smokingCount,
         detailedSmokingLogs: [],
-        totalScreenTimeMinutes: 0,
+        totalScreenTimeMinutes: screenTime,
         appScreenTimes: appScreenTimes,
       );
     }

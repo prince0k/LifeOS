@@ -108,6 +108,7 @@ void main() {
       cigaretteCount: 0,
       stepCount: 0,
       pornRecoveryDays: 0,
+      totalScreenTime: 0,
       isInitialized: true,
     );
 

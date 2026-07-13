@@ -64,8 +64,8 @@ class DashboardScreen extends ConsumerWidget {
                 _buildSmartRecommendation(context, activeState, todayLog.computedRecoveryScore, todayLog),
                 const SizedBox(height: 32.0),
 
-                // Wellness Summary details
-                _buildSummaryGrid(context, todayLog),
+                // Wellness Summary details (with live steps & screen time)
+                _buildSummaryGrid(context, todayLog, habitsState),
 
                 // Habits Quick Log Section
                 _buildQuickLogSection(context, ref, habitsState),
@@ -138,8 +138,13 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSummaryGrid(BuildContext context, dynamic todayLog) {
+  Widget _buildSummaryGrid(BuildContext context, dynamic todayLog, HabitsState habitsState) {
     final theme = Theme.of(context);
+
+    // Format screen time
+    final hours = habitsState.totalScreenTime ~/ 60;
+    final mins = habitsState.totalScreenTime % 60;
+    final screenTimeStr = hours > 0 ? '${hours}h ${mins}m' : '${mins}m';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,6 +170,8 @@ class DashboardScreen extends ConsumerWidget {
             _buildCardItem(context, 'Current Mood', todayLog.mood, Icons.sentiment_satisfied),
             _buildCardItem(context, 'Energy Score', '${todayLog.energyRating * 10}%', Icons.bolt),
             _buildCardItem(context, 'Stress Level', '${todayLog.stressRating * 10}%', Icons.psychology),
+            _buildCardItem(context, 'Steps Walked', '${habitsState.stepCount} steps', Icons.directions_walk),
+            _buildCardItem(context, 'Screen Time', screenTimeStr, Icons.phone_android),
           ],
         ),
       ],
@@ -378,6 +385,30 @@ class DashboardScreen extends ConsumerWidget {
               },
               actionLabel: '+1 Day',
             ),
+            // Add Screen Time (increase)
+            _buildHabitItem(
+              context,
+              title: 'Log Screen Time',
+              value: '${habitsState.totalScreenTime} mins',
+              icon: Icons.phone_android,
+              color: Colors.orange,
+              onTap: () {
+                ref.read(habitsProvider.notifier).incrementHabit('screen_time', 30);
+              },
+              actionLabel: '+30 mins',
+            ),
+            // Deduct Screen Time (decrease)
+            _buildHabitItem(
+              context,
+              title: 'Reduce Screen Time',
+              value: '${habitsState.totalScreenTime} mins',
+              icon: Icons.phone_locked,
+              color: Colors.teal,
+              onTap: () {
+                ref.read(habitsProvider.notifier).incrementHabit('screen_time', -30);
+              },
+              actionLabel: '-30 mins',
+            ),
           ],
         ),
       ],
@@ -454,15 +485,15 @@ class DashboardScreen extends ConsumerWidget {
     final workCompleted = tasks.any((t) => t.isCompleted);
     final recoveryCheckIn = todayLog != null;
     final brainDumpCompleted = todayLog.checkedMentalActivities.contains('Brain Dump') || todayLog.checkedMentalActivities.contains('Journal');
-    final screenTimeLimit = true; // Win met by default
+    final screenTimeLimit = habitsState.totalScreenTime < 180; // 3 hours limit
 
     final wins = [
       {'title': 'Shift Completed', 'status': shiftCompleted},
-      {'title': '20-Minute Walk', 'status': walkCompleted},
+      {'title': '20-Minute Walk (Steps >= 2,000)', 'status': walkCompleted},
       {'title': '30 Mins Mailing/CityHost', 'status': workCompleted},
       {'title': 'Recovery Check-in', 'status': recoveryCheckIn},
       {'title': 'Brain Dump Before Sleep', 'status': brainDumpCompleted},
-      {'title': 'Screen Time < 3 Hours', 'status': screenTimeLimit},
+      {'title': 'Screen Time < 3 Hours (180 mins)', 'status': screenTimeLimit},
     ];
 
     final completedWins = wins.where((w) => w['status'] == true).length;
@@ -570,7 +601,7 @@ class DashboardScreen extends ConsumerWidget {
         {'time': '04:00 - 04:45', 'title': 'Power Nap', 'desc': 'Prepare energy for shift.'},
         {'time': '05:00 - 05:30', 'title': 'Dinner', 'desc': 'Fuel up.'},
         {'time': '05:30 - 06:45', 'title': 'Planning / Small Tasks', 'desc': 'Quick items.'},
-        {'time': '07:30 - 03:30', 'title': 'Shift Duty', 'desc': 'Work shifts (Idle: SEO, planning).'},
+        {'time': '07:30 - 03:30', 'title': 'Shift Duty', 'desc': 'Shift work (Idle: SEO, planning).'},
         {'time': '03:30 - 03:45', 'title': 'Shutdown Ritual', 'desc': 'No phone, walk, change clothes.'},
         {'time': '04:00 AM', 'title': 'Sleep', 'desc': 'Fast asleep.'},
       ];
@@ -581,7 +612,7 @@ class DashboardScreen extends ConsumerWidget {
         {'time': '09:50 - 10:20', 'title': 'Breakfast', 'desc': 'Fuel for shift.'},
         {'time': '10:20 - 10:35', 'title': 'Recovery Check-in', 'desc': 'Log check-in parameters.'},
         {'time': '10:35 - 11:45', 'title': 'Personal Work / Meal Prep', 'desc': 'Preparations.'},
-        {'time': '12:00 - 00:00', 'title': '12-Hour Shift Duty', 'desc': 'Work shift (Idle: Reading, planning).'},
+        {'time': '12:00 - 00:00', 'title': '12-Hour Shift Duty', 'desc': 'Shift work (Idle: Reading, planning).'},
         {'time': '00:00 - 00:15', 'title': 'Shutdown Ritual', 'desc': 'Signal brain work ended.'},
         {'time': '00:30 AM', 'title': 'Sleep', 'desc': 'Deep rest.'},
       ];
