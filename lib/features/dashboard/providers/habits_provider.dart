@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:health/health.dart';
 import '../../../shared/models/habit_log_model.dart';
 import '../../../shared/providers/database_provider.dart';
 
@@ -110,7 +111,31 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
 
   Future<void> refreshAutoMetrics() async {
     await refreshDigitalWellbeingScreenTime();
+    await syncGoogleFitSteps();
     await syncNativeSteps();
+  }
+
+  Future<void> syncGoogleFitSteps() async {
+    try {
+      final health = Health();
+      final types = [HealthDataType.STEPS];
+      final permissions = [HealthDataAccess.READ];
+
+      bool hasPermissions = await health.hasPermissions(types, permissions: permissions) ?? false;
+      if (!hasPermissions) {
+        hasPermissions = await health.requestAuthorization(types, permissions: permissions);
+      }
+
+      if (hasPermissions) {
+        final now = DateTime.now();
+        final midnight = DateTime(now.year, now.month, now.day);
+        
+        final steps = await health.getTotalStepsInInterval(midnight, now);
+        if (steps != null && steps > 0) {
+          await updateHabit('steps', steps.toDouble());
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> refreshDigitalWellbeingScreenTime() async {

@@ -57,11 +57,21 @@ void main() {
     expect(databaseService.projectsBox.isOpen, isTrue);
     expect(databaseService.recoveryLogBox.isOpen, isTrue);
     expect(databaseService.habitsLogBox.isOpen, isTrue);
+    expect(databaseService.journalsBox.isOpen, isTrue);
 
     final savedKey = await mockSecureStorage.read(key: 'hive_encryption_key');
     expect(savedKey, isNotNull);
     final keyBytes = base64Url.decode(savedKey!);
     expect(keyBytes.length, equals(32));
+
+    final testTaskWarmup = TaskModel(
+      id: 'task-warmup',
+      title: 'Initialize repository warmup',
+      priority: 'High',
+      isCompleted: false,
+      targetDate: '2026-07-13',
+      rolloverCount: 0,
+    );
 
     final testTask = TaskModel(
       id: 'task-123',
@@ -71,6 +81,9 @@ void main() {
       targetDate: '2026-07-13',
       rolloverCount: 0,
     );
+
+    // Warmup write using the separate instance to handle cold-start file allocation
+    await databaseService.tasksBox.put(testTaskWarmup.id, testTaskWarmup);
 
     final stopwatchWrite = Stopwatch()..start();
     await databaseService.tasksBox.put(testTask.id, testTask);

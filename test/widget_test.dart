@@ -92,6 +92,9 @@ class FakeHabitsNotifier extends StateNotifier<HabitsState> implements HabitsNot
 
   @override
   Future<void> syncNativeSteps() async {}
+
+  @override
+  Future<void> syncGoogleFitSteps() async {}
 }
 
 void main() {
