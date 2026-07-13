@@ -1,12 +1,88 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifeos/main.dart';
+import 'package:lifeos/shared/models/recovery_state.dart';
+import 'package:lifeos/features/settings/providers/settings_provider.dart';
+import 'package:lifeos/features/recovery/providers/recovery_provider.dart';
+import 'package:lifeos/shared/models/settings_model.dart';
+
+// Fake Notifier for Settings
+class FakeSettingsNotifier extends Notifier<SettingsModel> implements SettingsNotifier {
+  final SettingsModel _initialState;
+
+  FakeSettingsNotifier(this._initialState);
+
+  @override
+  SettingsModel build() => _initialState;
+
+  @override
+  Future<void> updateSettings(SettingsModel newSettings) async {
+    state = newSettings;
+  }
+}
+
+// Fake Notifier for Recovery State
+class FakeRecoveryNotifier extends Notifier<RecoveryStateData> implements RecoveryNotifier {
+  final RecoveryStateData _initialState;
+
+  FakeRecoveryNotifier(this._initialState);
+
+  @override
+  RecoveryStateData build() => _initialState;
+
+  @override
+  Future<void> submitCheckIn({
+    required String sleepStartTime,
+    required String sleepEndTime,
+    required int nightWakeUps,
+    required int sleepQuality,
+    required int energyRating,
+    required int stressRating,
+    required String mood,
+    required List<String> checkedPhysicalActivities,
+    required List<String> checkedMentalActivities,
+    required String currentShiftTemplateName,
+  }) async {}
+
+  @override
+  Future<void> overrideState(RecoveryState newState) async {
+    state = state.copyWith(activeState: newState);
+  }
+}
 
 void main() {
-  testWidgets('LifeOS app renders initial screen text', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('LifeOS app renders Dashboard Screen with mock providers', (WidgetTester tester) async {
+    final mockSettings = SettingsModel(
+      shiftTemplates: {},
+      recoveryWeights: {},
+      selectedAppPackages: [],
+      unhealthyHabitCeiling: 10,
+      schemaVersion: 1,
+    );
 
-    // Verify that the initial welcome text is displayed on screen
-    expect(find.text('LifeOS Ready'), findsOneWidget);
+    final mockRecoveryState = RecoveryStateData(
+      todayLog: null,
+      activeState: RecoveryState.productive,
+      isInitialized: true,
+    );
+
+    // Build the app with overridden providers
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsProvider.overrideWith(() => FakeSettingsNotifier(mockSettings)),
+          recoveryProvider.overrideWith(() => FakeRecoveryNotifier(mockRecoveryState)),
+        ],
+        child: const MyApp(),
+      ),
+    );
+
+    // Pump frame
+    await tester.pump();
+
+    // Verify layout widgets are visible
+    expect(find.text('LifeOS'), findsOneWidget);
+    expect(find.text('Daily Check-in Pending'), findsOneWidget);
   });
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'shared/services/database/database_service.dart';
 import 'shared/providers/database_provider.dart';
+import 'features/dashboard/presentation/dashboard_screen.dart';
 
 void main() async {
   // Ensure Flutter engine bindings are initialized for database paths query
@@ -28,15 +29,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'LifeOS',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
       ),
-      home: const Scaffold(
-        body: Center(
-          child: Text('LifeOS Ready'),
-        ),
-      ),
+      home: const DashboardScreen(),
     );
   }
 }
