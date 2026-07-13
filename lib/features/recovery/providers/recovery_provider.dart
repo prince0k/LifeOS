@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:health/health.dart';
 import '../../../shared/models/recovery_model.dart';
 import '../../../shared/models/recovery_state.dart';
 import '../../../shared/providers/database_provider.dart';
@@ -62,6 +63,104 @@ class RecoveryNotifier extends Notifier<RecoveryStateData> {
       activeState: previousState,
       isInitialized: true,
     );
+  }
+
+  Future<Map<String, dynamic>?> fetchGoogleFitData() async {
+    try {
+      final health = Health();
+      final types = [
+        HealthDataType.STEPS,
+        HealthDataType.HEART_RATE,
+        HealthDataType.SLEEP_SESSION,
+      ];
+      final permissions = [HealthDataAccess.READ];
+
+      bool hasPermissions = await health.hasPermissions(types, permissions: permissions) ?? false;
+      if (!hasPermissions) {
+        hasPermissions = await health.requestAuthorization(types, permissions: permissions);
+      }
+
+      if (!hasPermissions) {
+        return null;
+      }
+
+      final now = DateTime.now();
+      final midnight = DateTime(now.year, now.month, now.day);
+      final yesterday = now.subtract(const Duration(hours: 24));
+
+      // 1. Fetch Steps
+      int stepsCount = 0;
+      try {
+        final stepsVal = await health.getTotalStepsInInterval(midnight, now);
+        if (stepsVal != null) {
+          stepsCount = stepsVal;
+        }
+      } catch (_) {}
+
+      // 2. Fetch Sleep Session
+      String sleepStart = '23:00';
+      String sleepEnd = '07:30';
+      try {
+        final sleepData = await health.getHealthDataFromTypes(
+          types: [HealthDataType.SLEEP_SESSION],
+          startTime: yesterday,
+          endTime: now,
+        );
+        if (sleepData.isNotEmpty) {
+          // Sort by dateTo to get the most recent session
+          sleepData.sort((a, b) => b.dateTo.compareTo(a.dateTo));
+          final lastSleep = sleepData.first;
+          sleepStart = DateFormat('HH:mm').format(lastSleep.dateFrom);
+          sleepEnd = DateFormat('HH:mm').format(lastSleep.dateTo);
+        }
+      } catch (_) {}
+
+      // 3. Fetch Heart Rate & Estimate Stress/Energy
+      int avgHeartRate = 70;
+      try {
+        final hrData = await health.getHealthDataFromTypes(
+          types: [HealthDataType.HEART_RATE],
+          startTime: yesterday,
+          endTime: now,
+        );
+        if (hrData.isNotEmpty) {
+          double sum = 0;
+          for (var p in hrData) {
+            final numericVal = double.tryParse(p.value.toString()) ?? 70.0;
+            sum += numericVal;
+          }
+          avgHeartRate = (sum / hrData.length).toInt();
+        }
+      } catch (_) {}
+
+      // Map average heart rate to stress (1-10) and energy (1-10)
+      int estimatedStress = 4;
+      int estimatedEnergy = 7;
+      if (avgHeartRate < 60) {
+        estimatedStress = 2; // low stress
+        estimatedEnergy = 9; // high energy
+      } else if (avgHeartRate > 85) {
+        estimatedStress = 8; // high stress
+        estimatedEnergy = 3; // fatigued
+      } else if (avgHeartRate > 75) {
+        estimatedStress = 6;
+        estimatedEnergy = 5;
+      } else {
+        estimatedStress = 4;
+        estimatedEnergy = 7;
+      }
+
+      return {
+        'steps': stepsCount,
+        'sleepStart': sleepStart,
+        'sleepEnd': sleepEnd,
+        'heartRate': avgHeartRate,
+        'stressRating': estimatedStress,
+        'energyRating': estimatedEnergy,
+      };
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Submits today's recovery check-in details. Calculates scores and updates database.

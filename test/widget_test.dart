@@ -51,6 +51,11 @@ class FakeRecoveryNotifier extends Notifier<RecoveryStateData> implements Recove
   Future<void> overrideState(RecoveryState newState) async {
     state = state.copyWith(activeState: newState);
   }
+
+  @override
+  Future<Map<String, dynamic>?> fetchGoogleFitData() async {
+    return null;
+  }
 }
 
 // Fake Notifier for Tasks

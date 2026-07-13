@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifeos/core/constants/activity_constants.dart';
 import 'package:lifeos/features/recovery/providers/recovery_provider.dart';
+import 'package:lifeos/features/dashboard/providers/habits_provider.dart';
 
 class CheckInSheet extends ConsumerStatefulWidget {
   const CheckInSheet({super.key});
@@ -25,6 +26,44 @@ class _CheckInSheetState extends ConsumerState<CheckInSheet> {
 
   final List<String> _moods = ['Happy', 'Peaceful', 'Muted', 'Tired', 'Anxious', 'Stressed'];
   final List<String> _shiftTemplates = ['Morning Shift', 'Night Shift', '12-Hour Shift', 'Off Day', 'Night -> Morning Transition'];
+
+  bool _isSyncing = false;
+
+  Future<void> _syncGoogleFit() async {
+    setState(() => _isSyncing = true);
+    final data = await ref.read(recoveryProvider.notifier).fetchGoogleFitData();
+    setState(() => _isSyncing = false);
+
+    if (data != null) {
+      setState(() {
+        _sleepStart = data['sleepStart'] as String;
+        _sleepEnd = data['sleepEnd'] as String;
+        _energyRating = data['energyRating'] as int;
+        _stressRating = data['stressRating'] as int;
+      });
+
+      final steps = data['steps'] as int;
+      if (steps > 0) {
+        ref.read(habitsProvider.notifier).updateHabit('steps', steps.toDouble());
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Google Fit Synced! Steps: $steps, Sleep: $_sleepStart-$_sleepEnd, Heart Rate: ${data['heartRate']} bpm.',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to sync Google Fit data. Ensure permissions are granted.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +99,32 @@ class _CheckInSheetState extends ConsumerState<CheckInSheet> {
               'Wellness Check-in',
               style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 24.0),
+            const SizedBox(height: 16.0),
+
+            // Google Fit Sync Button
+            SizedBox(
+              width: double.infinity,
+              height: 44.0,
+              child: OutlinedButton.icon(
+                icon: _isSyncing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync_alt, color: Colors.blue),
+                label: Text(
+                  _isSyncing ? 'Syncing Google Fit...' : 'Sync Google Fit & Vitals',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.blue, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: _isSyncing ? null : _syncGoogleFit,
+              ),
+            ),
+            const SizedBox(height: 20.0),
 
             // 0. Active Shift Template Dropdown
             Text('Active Shift Template', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
