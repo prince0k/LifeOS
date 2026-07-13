@@ -11,12 +11,12 @@ import android.hardware.SensorManager
 import android.os.Bundle
 import android.provider.Settings
 import androidx.annotation.NonNull
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.util.Calendar
 
-class MainActivity: FlutterActivity(), SensorEventListener {
+class MainActivity: FlutterFragmentActivity(), SensorEventListener {
     private val USAGE_CHANNEL = "com.lifeos.lifeos/usage"
     private val PEDOMETER_CHANNEL = "com.lifeos.lifeos/pedometer"
     private var sensorManager: SensorManager? = null
