@@ -10,6 +10,7 @@ class HabitsState {
   final int stepCount;
   final int pornRecoveryDays;
   final int totalScreenTime;
+  final int urgesCount;
   final bool hasUsagePermission;
   final bool isInitialized;
 
@@ -19,6 +20,7 @@ class HabitsState {
     required this.stepCount,
     required this.pornRecoveryDays,
     required this.totalScreenTime,
+    required this.urgesCount,
     required this.hasUsagePermission,
     required this.isInitialized,
   });
@@ -29,6 +31,7 @@ class HabitsState {
     int? stepCount,
     int? pornRecoveryDays,
     int? totalScreenTime,
+    int? urgesCount,
     bool? hasUsagePermission,
     bool? isInitialized,
   }) {
@@ -38,6 +41,7 @@ class HabitsState {
       stepCount: stepCount ?? this.stepCount,
       pornRecoveryDays: pornRecoveryDays ?? this.pornRecoveryDays,
       totalScreenTime: totalScreenTime ?? this.totalScreenTime,
+      urgesCount: urgesCount ?? this.urgesCount,
       hasUsagePermission: hasUsagePermission ?? this.hasUsagePermission,
       isInitialized: isInitialized ?? this.isInitialized,
     );
@@ -55,6 +59,7 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
           stepCount: 0,
           pornRecoveryDays: 0,
           totalScreenTime: 0,
+          urgesCount: 0,
           hasUsagePermission: false,
           isInitialized: false,
         )) {
@@ -76,6 +81,7 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
       final water = todayLog.appScreenTimes['water'] ?? 0;
       final steps = todayLog.appScreenTimes['steps'] ?? 0;
       final pornRecovery = todayLog.appScreenTimes['porn_recovery'] ?? 0;
+      final urges = todayLog.appScreenTimes['urges'] ?? 0;
 
       state = HabitsState(
         waterCups: water,
@@ -83,6 +89,7 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
         stepCount: steps,
         pornRecoveryDays: pornRecovery,
         totalScreenTime: todayLog.totalScreenTimeMinutes,
+        urgesCount: urges,
         hasUsagePermission: permission,
         isInitialized: true,
       );
@@ -93,6 +100,7 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
         stepCount: 0,
         pornRecoveryDays: 0,
         totalScreenTime: 0,
+        urgesCount: 0,
         hasUsagePermission: permission,
         isInitialized: true,
       );
@@ -114,7 +122,6 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
   Future<void> requestUsagePermission() async {
     try {
       await _channel.invokeMethod<void>('grantUsagePermission');
-      // Delay slightly to let screen transition occur before checking
       await Future.delayed(const Duration(milliseconds: 1000));
       await _loadTodayHabits();
       await refreshDigitalWellbeingScreenTime();
@@ -186,6 +193,8 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
       currentValue = state.pornRecoveryDays;
     } else if (habitName == 'screen_time') {
       currentValue = state.totalScreenTime;
+    } else if (habitName == 'urges') {
+      currentValue = state.urgesCount;
     }
 
     final targetValue = (currentValue + delta).clamp(0, 999999);

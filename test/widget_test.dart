@@ -115,6 +115,7 @@ void main() {
       stepCount: 0,
       pornRecoveryDays: 0,
       totalScreenTime: 0,
+      urgesCount: 0,
       hasUsagePermission: false,
       isInitialized: true,
     );

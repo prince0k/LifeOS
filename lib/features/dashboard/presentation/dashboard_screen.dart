@@ -436,33 +436,109 @@ class DashboardScreen extends ConsumerWidget {
               },
               actionLabel: '+1 Day',
             ),
-            // Add Screen Time (increase)
+            // Combined Screen Time Habit Item
+            _buildScreenTimeHabitItem(context, ref, habitsState.totalScreenTime),
+            // Urges Logged Quick Log
             _buildHabitItem(
               context,
-              title: 'Log Screen Time',
-              value: '${habitsState.totalScreenTime} mins',
-              icon: Icons.phone_android,
-              color: Colors.orange,
+              title: 'Urges Logged',
+              value: '${habitsState.urgesCount} events',
+              icon: Icons.warning_amber_rounded,
+              color: Colors.amber,
               onTap: () {
-                ref.read(habitsProvider.notifier).incrementHabit('screen_time', 30);
+                ref.read(habitsProvider.notifier).incrementHabit('urges', 1);
               },
-              actionLabel: '+30 mins',
-            ),
-            // Deduct Screen Time (decrease)
-            _buildHabitItem(
-              context,
-              title: 'Reduce Screen Time',
-              value: '${habitsState.totalScreenTime} mins',
-              icon: Icons.phone_locked,
-              color: Colors.teal,
-              onTap: () {
-                ref.read(habitsProvider.notifier).incrementHabit('screen_time', -30);
-              },
-              actionLabel: '-30 mins',
+              actionLabel: '+1 Urge',
             ),
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildScreenTimeHabitItem(BuildContext context, WidgetRef ref, int screenTime) {
+    final theme = Theme.of(context);
+    final hours = screenTime ~/ 60;
+    final mins = screenTime % 60;
+    final formattedTime = hours > 0 ? '${hours}h ${mins}m' : '${mins}m';
+
+    return Container(
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16.0),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.03)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.phone_android, size: 20, color: Colors.orange),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Screen Time',
+                  style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          Text(
+            formattedTime,
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 28,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal.withOpacity(0.12),
+                      foregroundColor: Colors.teal,
+                      elevation: 0,
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      ref.read(habitsProvider.notifier).incrementHabit('screen_time', -30);
+                    },
+                    child: const Text(
+                      '-30m',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: SizedBox(
+                  height: 28,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.withOpacity(0.12),
+                      foregroundColor: Colors.orange,
+                      elevation: 0,
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      ref.read(habitsProvider.notifier).incrementHabit('screen_time', 30);
+                    },
+                    child: const Text(
+                      '+30m',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
