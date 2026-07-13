@@ -24,7 +24,7 @@ class _CheckInSheetState extends ConsumerState<CheckInSheet> {
   final List<String> _checkedMentalActivities = [];
 
   final List<String> _moods = ['Happy', 'Peaceful', 'Muted', 'Tired', 'Anxious', 'Stressed'];
-  final List<String> _shiftTemplates = ['Morning Shift', 'Night Shift', '12-Hour Shift', 'Off Day'];
+  final List<String> _shiftTemplates = ['Morning Shift', 'Night Shift', '12-Hour Shift', 'Off Day', 'Night -> Morning Transition'];
 
   @override
   Widget build(BuildContext context) {

@@ -25,6 +25,11 @@ class DashboardScreen extends ConsumerWidget {
     final todaysTasks = tasksState.todaysTasks;
     final isBurnout = activeState == RecoveryState.burnoutRisk;
 
+    // Apply adaptive rules to task planner
+    final is12Hour = todayLog?.shiftTemplateName == '12-Hour Shift';
+    final isTransition = todayLog?.shiftTemplateName == 'Night -> Morning Transition';
+    final isPlannerSuppressed = isBurnout || is12Hour || isTransition;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('LifeOS', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -56,7 +61,7 @@ class DashboardScreen extends ConsumerWidget {
                 ),
 
                 // Smart Recommendation Card
-                _buildSmartRecommendation(context, activeState, todayLog.computedRecoveryScore),
+                _buildSmartRecommendation(context, activeState, todayLog.computedRecoveryScore, todayLog),
                 const SizedBox(height: 32.0),
 
                 // Wellness Summary details
@@ -65,13 +70,21 @@ class DashboardScreen extends ConsumerWidget {
                 // Habits Quick Log Section
                 _buildQuickLogSection(context, ref, habitsState),
 
+                // Daily Minimum Wins Section
+                _buildMinimumWinsSection(context, todayLog, todaysTasks, habitsState),
+
                 // 3. Active Shift Timetable
                 _buildScheduleTimeline(context, activeState, todayLog.shiftTemplateName ?? 'Morning Shift'),
 
                 // 4. Tasks checklist
                 _TaskPlannerSection(
                   tasks: todaysTasks,
-                  isBurnout: isBurnout,
+                  isPlannerSuppressed: isPlannerSuppressed,
+                  suppressionReason: isBurnout
+                      ? 'Burnout Risk: All project tasks are suppressed.'
+                      : (is12Hour
+                          ? '12-Hour Shift Rules: No project work allowed today.'
+                          : 'Transition Day: No Mailing/CityHost work allowed.'),
                 ),
               ],
               const SizedBox(height: 32.0),
@@ -202,30 +215,51 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSmartRecommendation(BuildContext context, RecoveryState state, double score) {
+  Widget _buildSmartRecommendation(BuildContext context, RecoveryState state, double score, dynamic todayLog) {
     final theme = Theme.of(context);
     final String recommendation;
     final IconData icon;
     final Color cardBg;
     final Color textColor;
 
+    final sleepDuration = _calculateSleepDuration(todayLog.sleepStartTime, todayLog.sleepEndTime);
+    final isShortSleep = sleepDuration < 5.0;
+    final is12Hour = todayLog.shiftTemplateName == '12-Hour Shift';
+    final isTransition = todayLog.shiftTemplateName == 'Night -> Morning Transition';
+    final isHighStress = todayLog.stressRating >= 8;
+
     if (state == RecoveryState.burnoutRisk) {
-      recommendation = "⚠️ BURNOUT RISK ACTIVATE:\nAll work tasks are suppressed today. Prioritize sleeping, light walking, hydration, and write a Brain Dump to offload overthinking.";
+      recommendation = "⚠️ BURNOUT RISK ACTIVATE:\nAll project work is suppressed. Focus entirely on sleep, 20-min walks, and hydration. Log a Brain Dump to offload overthinking.";
       icon = Icons.health_and_safety;
       cardBg = Colors.red.withOpacity(0.08);
       textColor = Colors.red;
-    } else if (score < 50) {
-      recommendation = "💡 LOW CAPACITY DETECTED:\nWe recommend reducing your Deep Work targets. Focus only on Mailing SEO tasks. CityHost campaign activities are optional today.";
-      icon = Icons.lightbulb_outline;
+    } else if (isShortSleep) {
+      recommendation = "⚠️ SLEEP < 5 HOURS (RECOVERY MODE):\nSleep was only ${sleepDuration.toStringAsFixed(1)} hours. Deep Work is reduced to 45-60 mins. CityHost tasks are optional today. Prioritize rest.";
+      icon = Icons.warning_amber_rounded;
       cardBg = Colors.orange.withOpacity(0.08);
       textColor = Colors.orange;
-    } else if (score < 70) {
-      recommendation = "💡 SUB-OPTIMAL RECOVERY:\nYour energy is slightly reduced. Focus on shift duties first, and limit deep work to 2 hours. Try to get a 20-minute walk to recharge.";
+    } else if (is12Hour) {
+      recommendation = "🔴 12-HOUR SHIFT RULES:\nNo Mailing, No CityHost, No Deep Work today. Focus entirely on completing your shift, walk, meal prep, and getting sleep.";
+      icon = Icons.timelapse;
+      cardBg = Colors.red.withOpacity(0.08);
+      textColor = Colors.red;
+    } else if (isTransition) {
+      recommendation = "⚡ NIGHT -> MORNING SHIFT TRANSITION:\nNo Mailing, No CityHost, No Deep Work today. Prioritize full recovery to shift your sleep schedule. Sleep early tonight.";
+      icon = Icons.sync;
+      cardBg = Colors.blue.withOpacity(0.08);
+      textColor = Colors.blue;
+    } else if (isHighStress) {
+      recommendation = "⚠️ HIGH STRESS DETECTED:\nUrges and high stress logged. Workload reduced. Go for a walk, log a Brain Dump, and enable Recovery Mode.";
+      icon = Icons.psychology;
+      cardBg = Colors.orange.withOpacity(0.08);
+      textColor = Colors.orange;
+    } else if (score < 60) {
+      recommendation = "💡 LOW RECOVERY SCORE ($score%):\nSuggest reducing deep work load. Limit screen time to under 3 hours. Focus on Mailing minimum wins.";
       icon = Icons.lightbulb_outline;
       cardBg = Colors.blue.withOpacity(0.08);
       textColor = Colors.blue;
     } else {
-      recommendation = "🚀 PEAK PERFORMANCE LOADED:\nExcellent score! Full deep work capacity is loaded. We recommend starting with Mailing Website Dev first, then CityHost video editing.";
+      recommendation = "🚀 PEAK PERFORMANCE LOADED:\nFull capacity active. Mailing dev and CityHost video editing recommended. Complete your 20-minute walk.";
       icon = Icons.rocket_launch_outlined;
       cardBg = Colors.green.withOpacity(0.08);
       textColor = Colors.green;
@@ -412,6 +446,89 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildMinimumWinsSection(BuildContext context, dynamic todayLog, List<TaskModel> tasks, HabitsState habitsState) {
+    final theme = Theme.of(context);
+
+    final shiftCompleted = todayLog != null;
+    final walkCompleted = todayLog.checkedPhysicalActivities.contains('Walk') || habitsState.stepCount >= 2000;
+    final workCompleted = tasks.any((t) => t.isCompleted);
+    final recoveryCheckIn = todayLog != null;
+    final brainDumpCompleted = todayLog.checkedMentalActivities.contains('Brain Dump') || todayLog.checkedMentalActivities.contains('Journal');
+    final screenTimeLimit = true; // Win met by default
+
+    final wins = [
+      {'title': 'Shift Completed', 'status': shiftCompleted},
+      {'title': '20-Minute Walk', 'status': walkCompleted},
+      {'title': '30 Mins Mailing/CityHost', 'status': workCompleted},
+      {'title': 'Recovery Check-in', 'status': recoveryCheckIn},
+      {'title': 'Brain Dump Before Sleep', 'status': brainDumpCompleted},
+      {'title': 'Screen Time < 3 Hours', 'status': screenTimeLimit},
+    ];
+
+    final completedWins = wins.where((w) => w['status'] == true).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 32.0),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'DAILY MINIMUM WINS',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+                color: theme.hintColor,
+              ),
+            ),
+            Text(
+              '$completedWins / 6 MET',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: completedWins == 6 ? Colors.green : theme.colorScheme.primary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12.0),
+        Container(
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(20.0),
+            border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+          ),
+          child: Column(
+            children: wins.map((win) {
+              final isChecked = win['status'] == true;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Row(
+                  children: [
+                    Icon(
+                      isChecked ? Icons.check_circle : Icons.radio_button_unchecked,
+                      color: isChecked ? Colors.green : theme.hintColor,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      win['title'] as String,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: isChecked ? null : theme.hintColor,
+                        fontWeight: isChecked ? FontWeight.bold : null,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildScheduleTimeline(BuildContext context, RecoveryState activeState, String shiftName) {
     final theme = Theme.of(context);
     final isBurnout = activeState == RecoveryState.burnoutRisk;
@@ -424,29 +541,79 @@ class DashboardScreen extends ConsumerWidget {
       ];
     } else if (shiftName == 'Off Day') {
       slots = [
-        {'time': 'All Day', 'title': 'Personal Off Day', 'desc': 'Free time, light recovery exercises, hobbies, and family time.'},
+        {'time': '08:30 AM', 'title': 'Wake Up', 'desc': 'Rise and prepare for walk.'},
+        {'time': '08:30 - 09:00', 'title': 'Walk / Exercise', 'desc': 'Outdoor light cardio.'},
+        {'time': '09:00 - 09:30', 'title': 'Breakfast', 'desc': 'Healthy nutrition.'},
+        {'time': '09:30 - 11:30', 'title': 'Mailing Deep Work (2h)', 'desc': 'SEO, Dev, or website planning.'},
+        {'time': '11:30 - 11:45', 'title': 'Break', 'desc': 'Relaxation block.'},
+        {'time': '11:45 - 01:15', 'title': 'CityHost Deep Work (1.5h)', 'desc': 'Video editing or website campaigns.'},
+        {'time': '01:15 - 02:00', 'title': 'Lunch', 'desc': 'Mental break.'},
+        {'time': '02:00 - 03:00', 'title': 'Home / Personal Work', 'desc': 'Desk organizing, chores.'},
+        {'time': '03:00 - 03:30', 'title': 'English Practice', 'desc': 'Daily practice.'},
+        {'time': '03:30 - 04:30', 'title': 'Weekly Review + Planning', 'desc': 'Calendar, logs, targets review.'},
+        {'time': '04:30 - 05:30', 'title': 'Walk / Exercise', 'desc': 'Cardio recovery walk.'},
+        {'time': '05:30 - 06:30', 'title': 'Learning / Reading', 'desc': 'Book reading, research.'},
+        {'time': '06:30 - 07:30', 'title': 'Family / Free Time', 'desc': 'Social connection.'},
+        {'time': '09:30 - 10:00', 'title': 'Brain Dump + Journal', 'desc': 'Clear thoughts before bed.'},
+        {'time': '10:30 PM', 'title': 'Sleep', 'desc': 'Wind down (Bed rules active).'},
       ];
     } else if (shiftName == 'Night Shift') {
       slots = [
-        {'time': '08:00 - 16:00', 'title': 'Rest & Recovery Sleep', 'desc': 'Sleep environment optimization.'},
-        {'time': '16:00 - 21:00', 'title': 'Preparation & Personal Work', 'desc': 'Pre-work routines and planning.'},
-        {'time': '21:00 - 05:00', 'title': 'Night Shift Duty', 'desc': 'Active deep work focus blocks.'},
-        {'time': '05:00 - 08:00', 'title': 'Wind Down', 'desc': 'Relaxation routine before sleep.'},
+        {'time': '11:00 AM', 'title': 'Wake Up', 'desc': 'Rise and hydrate.'},
+        {'time': '11:00 - 11:20', 'title': 'Water + Breakfast', 'desc': 'First meal of the day.'},
+        {'time': '11:20 - 11:45', 'title': 'Walk', 'desc': 'Light outdoor walk.'},
+        {'time': '11:45 - 12:00', 'title': 'Recovery Check-in', 'desc': 'Log sleep and stats.'},
+        {'time': '12:00 - 02:00', 'title': 'Mailing Deep Work (2h)', 'desc': 'Focus on web or SEO.'},
+        {'time': '02:00 - 02:30', 'title': 'Lunch', 'desc': 'Nutritional break.'},
+        {'time': '02:30 - 03:30', 'title': 'CityHost Work (1h)', 'desc': 'Video edits or marketing.'},
+        {'time': '03:30 - 04:00', 'title': 'English Practice', 'desc': 'Focus and study.'},
+        {'time': '04:00 - 04:45', 'title': 'Power Nap', 'desc': 'Prepare energy for shift.'},
+        {'time': '05:00 - 05:30', 'title': 'Dinner', 'desc': 'Fuel up.'},
+        {'time': '05:30 - 06:45', 'title': 'Planning / Small Tasks', 'desc': 'Quick items.'},
+        {'time': '07:30 - 03:30', 'title': 'Shift Duty', 'desc': 'Work shifts (Idle: SEO, planning).'},
+        {'time': '03:30 - 03:45', 'title': 'Shutdown Ritual', 'desc': 'No phone, walk, change clothes.'},
+        {'time': '04:00 AM', 'title': 'Sleep', 'desc': 'Fast asleep.'},
       ];
     } else if (shiftName == '12-Hour Shift') {
       slots = [
-        {'time': '07:00 - 19:00', 'title': '12-Hour Work Block', 'desc': 'Extended duty window. Pace energy expenditure.'},
-        {'time': '19:00 - 22:30', 'title': 'Dinner & Relaxation', 'desc': 'Wind-down and family time.'},
-        {'time': '22:30 - 06:30', 'title': 'Sleep Window', 'desc': 'Target 8 hours sleep.'},
+        {'time': '09:30 AM', 'title': 'Wake Up', 'desc': 'Rise and prepare.'},
+        {'time': '09:30 - 09:50', 'title': 'Walk', 'desc': 'Sunlight exposure.'},
+        {'time': '09:50 - 10:20', 'title': 'Breakfast', 'desc': 'Fuel for shift.'},
+        {'time': '10:20 - 10:35', 'title': 'Recovery Check-in', 'desc': 'Log check-in parameters.'},
+        {'time': '10:35 - 11:45', 'title': 'Personal Work / Meal Prep', 'desc': 'Preparations.'},
+        {'time': '12:00 - 00:00', 'title': '12-Hour Shift Duty', 'desc': 'Work shift (Idle: Reading, planning).'},
+        {'time': '00:00 - 00:15', 'title': 'Shutdown Ritual', 'desc': 'Signal brain work ended.'},
+        {'time': '00:30 AM', 'title': 'Sleep', 'desc': 'Deep rest.'},
+      ];
+    } else if (shiftName == 'Night -> Morning Transition') {
+      slots = [
+        {'time': '03:45 AM', 'title': 'Sleep', 'desc': 'Rest after night shift.'},
+        {'time': '09:15 AM', 'title': 'Wake Up', 'desc': 'Transition wake window.'},
+        {'time': '09:15 - 09:30', 'title': 'Water + Stretch', 'desc': 'Light movement.'},
+        {'time': '09:30 - 10:15', 'title': 'Breakfast', 'desc': 'Nutritional fueling.'},
+        {'time': '10:30 - 18:30', 'title': 'Morning Shift (Transition)', 'desc': 'Light tasks during shift.'},
+        {'time': '18:30 - 19:00', 'title': 'Dinner', 'desc': 'Post-shift meal.'},
+        {'time': '19:00 - 21:30', 'title': 'Recovery Block', 'desc': 'No project work. Relax.'},
+        {'time': '21:30 - 22:00', 'title': 'Brain Dump', 'desc': 'Empty thoughts.'},
+        {'time': '22:30 PM', 'title': 'Sleep', 'desc': 'Align sleep cycle early.'},
       ];
     } else {
       // Default: Morning Shift
       slots = [
-        {'time': '07:30 - 09:00', 'title': 'Morning Routine & Planning', 'desc': 'Review tasks and execute planning.'},
-        {'time': '09:00 - 13:00', 'title': 'Deep Work Focus Block', 'desc': 'Target 240 minutes of deep focus.'},
-        {'time': '13:00 - 14:00', 'title': 'Lunch & Hydration', 'desc': 'Mental break and nutrition.'},
-        {'time': '14:00 - 17:00', 'title': 'Admin & Collaborations', 'desc': 'Emails, syncs, meetings, and follow-ups.'},
-        {'time': '17:00 - 23:00', 'title': 'Personal Projects & Sleep Prep', 'desc': 'Physical habits checklist and wind-down.'},
+        {'time': '08:30 AM', 'title': 'Wake Up', 'desc': 'Rise (No phone in bed).'},
+        {'time': '08:30 - 08:45', 'title': 'Water + Freshen Up', 'desc': 'Hydrate.'},
+        {'time': '08:45 - 09:10', 'title': 'Walk + Sunlight', 'desc': 'Circadian rhythm setup.'},
+        {'time': '09:10 - 09:40', 'title': 'Breakfast', 'desc': 'Fueling up.'},
+        {'time': '09:40 - 10:00', 'title': 'Recovery Check-in + Planning', 'desc': 'Determine daily goals.'},
+        {'time': '10:00 - 10:25', 'title': 'Prepare for Shift', 'desc': 'Desk setup separation.'},
+        {'time': '10:30 - 18:30', 'title': 'Morning Shift Duty', 'desc': 'Shift work (Idle: SEO, planning).'},
+        {'time': '18:30 - 18:45', 'title': 'Shutdown Ritual', 'desc': 'Leave desk, walk 5-10m.'},
+        {'time': '18:45 - 20:45', 'title': 'Mailing Deep Work (2h)', 'desc': 'SEO, Dev, social media.'},
+        {'time': '20:45 - 21:15', 'title': 'Dinner', 'desc': 'Healthy break.'},
+        {'time': '21:15 - 22:15', 'title': 'CityHost Work (1h)', 'desc': 'Video editing, website.'},
+        {'time': '22:15 - 22:35', 'title': 'English Practice', 'desc': 'Daily exercises.'},
+        {'time': '22:35 - 22:50', 'title': 'Brain Dump + Journal', 'desc': 'Offload mental logs.'},
+        {'time': '23:00 PM', 'title': 'Sleep', 'desc': 'Wind down (Bed rules active).'},
       ];
     }
 
@@ -457,12 +624,14 @@ class DashboardScreen extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'ACTIVE TIMETABLE: ${shiftName.toUpperCase()}',
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-                color: theme.hintColor,
+            Expanded(
+              child: Text(
+                'TIMETABLE: ${shiftName.toUpperCase()}',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                  color: theme.hintColor,
+                ),
               ),
             ),
             if (isBurnout)
@@ -553,6 +722,21 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
+  double _calculateSleepDuration(String start, String end) {
+    try {
+      final startParts = start.split(':');
+      final endParts = end.split(':');
+      final startMin = int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
+      var endMin = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
+      if (endMin < startMin) {
+        endMin += 24 * 60; // Midnight cross
+      }
+      return (endMin - startMin) / 60.0;
+    } catch (_) {
+      return 8.0;
+    }
+  }
+
   void _showCheckInSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -618,11 +802,13 @@ class DashboardScreen extends ConsumerWidget {
 
 class _TaskPlannerSection extends ConsumerStatefulWidget {
   final List<TaskModel> tasks;
-  final bool isBurnout;
+  final bool isPlannerSuppressed;
+  final String suppressionReason;
 
   const _TaskPlannerSection({
     required this.tasks,
-    required this.isBurnout,
+    required this.isPlannerSuppressed,
+    required this.suppressionReason,
   });
 
   @override
@@ -643,7 +829,7 @@ class _TaskPlannerSectionState extends ConsumerState<_TaskPlannerSection> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tasks = widget.tasks;
-    final isBurnout = widget.isBurnout;
+    final isPlannerSuppressed = widget.isPlannerSuppressed;
 
     // Calculate Consistency Score
     final completedCount = tasks.where((t) => t.isCompleted).length;
@@ -685,15 +871,15 @@ class _TaskPlannerSectionState extends ConsumerState<_TaskPlannerSection> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (isBurnout) ...[
+              if (isPlannerSuppressed) ...[
                 Row(
                   children: [
-                    const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                    const Icon(Icons.info_outline, color: Colors.blue),
                     const SizedBox(width: 8.0),
                     Expanded(
                       child: Text(
-                        'Burnout Risk State: All project tasks are suppressed to optimize full recovery.',
-                        style: theme.textTheme.bodyMedium?.copyWith(color: Colors.red),
+                        widget.suppressionReason,
+                        style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary),
                       ),
                     ),
                   ],
