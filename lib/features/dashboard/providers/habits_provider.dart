@@ -1,6 +1,6 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:usage_stats/usage_stats.dart';
 import '../../../shared/models/habit_log_model.dart';
 import '../../../shared/providers/database_provider.dart';
 
@@ -46,6 +46,7 @@ class HabitsState {
 
 class HabitsNotifier extends StateNotifier<HabitsState> {
   final Ref _ref;
+  static const _channel = MethodChannel('com.lifeos.lifeos/usage');
 
   HabitsNotifier(this._ref)
       : super(HabitsState(
@@ -68,7 +69,7 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
     final todayLog = dbService.habitsLogBox.get(todayKey);
     bool permission = false;
     try {
-      permission = await UsageStats.checkUsagePermission() ?? false;
+      permission = await _channel.invokeMethod<bool>('checkUsagePermission') ?? false;
     } catch (_) {}
 
     if (todayLog != null) {
@@ -100,21 +101,11 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
 
   Future<void> refreshDigitalWellbeingScreenTime() async {
     try {
-      final isGranted = await UsageStats.checkUsagePermission();
-      if (isGranted == true) {
-        final DateTime endDate = DateTime.now();
-        final DateTime startDate = DateTime(endDate.year, endDate.month, endDate.day);
-        
-        final List<UsageInfo> infos = await UsageStats.queryUsageStats(startDate, endDate);
-        
-        double totalMins = 0;
-        for (var info in infos) {
-          final timeMs = double.tryParse(info.totalTimeInForeground ?? '0') ?? 0.0;
-          totalMins += timeMs / 1000 / 60;
-        }
-
+      final isGranted = await _channel.invokeMethod<bool>('checkUsagePermission') ?? false;
+      if (isGranted) {
+        final totalMins = await _channel.invokeMethod<int>('getScreenTimeMinutes') ?? 0;
         if (totalMins > 0) {
-          await updateHabit('screen_time', totalMins.roundToDouble());
+          await updateHabit('screen_time', totalMins.toDouble());
         }
       }
     } catch (_) {}
@@ -122,7 +113,9 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
 
   Future<void> requestUsagePermission() async {
     try {
-      await UsageStats.grantUsagePermission();
+      await _channel.invokeMethod<void>('grantUsagePermission');
+      // Delay slightly to let screen transition occur before checking
+      await Future.delayed(const Duration(milliseconds: 1000));
       await _loadTodayHabits();
       await refreshDigitalWellbeingScreenTime();
     } catch (_) {}
