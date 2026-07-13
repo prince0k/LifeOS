@@ -15,6 +15,17 @@ The purpose of this document is to record the release history, version bumps, an
 
 ## 2. Release History
 
+### [1.0.0-alpha.3] — 2026-07-13
+Implementation of Riverpod state providers and Dashboard UI screens.
+
+#### Added
+- Created `settingsProvider` pre-populating shift templates.
+- Created `recoveryProvider` managing today's check-ins, calculations, and overrides.
+- Implemented `DashboardScreen` showing active state banners and progress gauges.
+- Created `RecoveryGauge` custom painter arc showing scores dynamically.
+- Created `CheckInSheet` bottom modal sheet for user inputs.
+- Created `dashboard_provider_test.dart` and refactored `widget_test.dart` to verify UI components.
+
 ### [1.0.0-alpha.2] — 2026-07-13
 Implementation of recovery scoring mathematics and user state transition machine.
 
