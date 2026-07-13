@@ -15,6 +15,17 @@ The purpose of this document is to record the release history, version bumps, an
 
 ## 2. Release History
 
+### [1.0.0-alpha.2] — 2026-07-13
+Implementation of recovery scoring mathematics and user state transition machine.
+
+#### Added
+- Scaffolded checklist activity constants in `activity_constants.dart`.
+- Defined user states in `recovery_state.dart` enum.
+- Created `RecoveryCalculator` representing sleep, energy, stress, and habits components.
+- Integrated shift modifier metrics (Off Day, Night Shift, 12-Hour Shift).
+- Programmed stateful transitions for burnout locks (RS < 50 for 3 days) and escape triggers (RS >= 70).
+- Created `recovery_calculator_test.dart` verification suite.
+
 ### [1.0.0-alpha.1] — 2026-07-13
 Initial codebase configuration, package integration, secure database scaffold, and unit test suites.
 
