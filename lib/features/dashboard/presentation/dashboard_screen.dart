@@ -334,7 +334,7 @@ class DashboardScreen extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.refresh, size: 20),
               onPressed: () {
-                ref.read(habitsProvider.notifier).refreshDigitalWellbeingScreenTime();
+                ref.read(habitsProvider.notifier).refreshAutoMetrics();
               },
             ),
           ],

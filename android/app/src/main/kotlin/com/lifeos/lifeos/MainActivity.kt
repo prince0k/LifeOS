@@ -4,6 +4,11 @@ import android.app.AppOpsManager
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.os.Bundle
 import android.provider.Settings
 import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
@@ -11,12 +16,27 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.util.Calendar
 
-class MainActivity: FlutterActivity() {
-    private val CHANNEL = "com.lifeos.lifeos/usage"
+class MainActivity: FlutterActivity(), SensorEventListener {
+    private val USAGE_CHANNEL = "com.lifeos.lifeos/usage"
+    private val PEDOMETER_CHANNEL = "com.lifeos.lifeos/pedometer"
+    private var sensorManager: SensorManager? = null
+    private var stepCounterSensor: Sensor? = null
+    private var stepsSinceBoot: Float = 0f
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        stepCounterSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+        if (stepCounterSensor != null) {
+            sensorManager?.registerListener(this, stepCounterSensor, SensorManager.SENSOR_DELAY_NORMAL)
+        }
+    }
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+        
+        // 1. Usage stats channel
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, USAGE_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "checkUsagePermission" -> {
                     result.success(checkUsagePermission())
@@ -27,6 +47,18 @@ class MainActivity: FlutterActivity() {
                 }
                 "getScreenTimeMinutes" -> {
                     result.success(getScreenTimeMinutes())
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
+
+        // 2. Pedometer channel
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PEDOMETER_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getStepsSinceBoot" -> {
+                    result.success(stepsSinceBoot.toInt())
                 }
                 else -> {
                     result.notImplemented()
@@ -70,4 +102,12 @@ class MainActivity: FlutterActivity() {
         }
         return (totalTimeMs / 1000 / 60).toInt()
     }
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
+            stepsSinceBoot = event.values[0]
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 }

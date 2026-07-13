@@ -50,7 +50,8 @@ class HabitsState {
 
 class HabitsNotifier extends StateNotifier<HabitsState> {
   final Ref _ref;
-  static const _channel = MethodChannel('com.lifeos.lifeos/usage');
+  static const _usageChannel = MethodChannel('com.lifeos.lifeos/usage');
+  static const _pedometerChannel = MethodChannel('com.lifeos.lifeos/pedometer');
 
   HabitsNotifier(this._ref)
       : super(HabitsState(
@@ -64,7 +65,7 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
           isInitialized: false,
         )) {
     _loadTodayHabits();
-    refreshDigitalWellbeingScreenTime();
+    refreshAutoMetrics();
   }
 
   Future<void> _loadTodayHabits() async {
@@ -74,7 +75,7 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
     final todayLog = dbService.habitsLogBox.get(todayKey);
     bool permission = false;
     try {
-      permission = await _channel.invokeMethod<bool>('checkUsagePermission') ?? false;
+      permission = await _usageChannel.invokeMethod<bool>('checkUsagePermission') ?? false;
     } catch (_) {}
 
     if (todayLog != null) {
@@ -107,11 +108,16 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
     }
   }
 
+  Future<void> refreshAutoMetrics() async {
+    await refreshDigitalWellbeingScreenTime();
+    await syncNativeSteps();
+  }
+
   Future<void> refreshDigitalWellbeingScreenTime() async {
     try {
-      final isGranted = await _channel.invokeMethod<bool>('checkUsagePermission') ?? false;
+      final isGranted = await _usageChannel.invokeMethod<bool>('checkUsagePermission') ?? false;
       if (isGranted) {
-        final totalMins = await _channel.invokeMethod<int>('getScreenTimeMinutes') ?? 0;
+        final totalMins = await _usageChannel.invokeMethod<int>('getScreenTimeMinutes') ?? 0;
         if (totalMins > 0) {
           await updateHabit('screen_time', totalMins.toDouble());
         }
@@ -119,12 +125,56 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
     } catch (_) {}
   }
 
+  Future<void> syncNativeSteps() async {
+    try {
+      final stepsSinceBoot = await _pedometerChannel.invokeMethod<int>('getStepsSinceBoot') ?? 0;
+      if (stepsSinceBoot > 0) {
+        final dbService = _ref.read(databaseServiceProvider);
+        final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
+        final todayLog = dbService.habitsLogBox.get(todayKey);
+
+        final int baseSteps;
+        if (todayLog != null && todayLog.appScreenTimes.containsKey('steps_base')) {
+          baseSteps = todayLog.appScreenTimes['steps_base'] ?? stepsSinceBoot;
+        } else {
+          // First time launching today, set baseSteps baseline
+          baseSteps = stepsSinceBoot;
+          final Map<String, int> initialAppScreenTimes = todayLog != null
+              ? Map.from(todayLog.appScreenTimes)
+              : {};
+          initialAppScreenTimes['steps_base'] = baseSteps;
+
+          final updatedLog = todayLog != null
+              ? HabitLogModel(
+                  date: todayKey,
+                  smokingCount: todayLog.smokingCount,
+                  detailedSmokingLogs: todayLog.detailedSmokingLogs,
+                  totalScreenTimeMinutes: todayLog.totalScreenTimeMinutes,
+                  appScreenTimes: initialAppScreenTimes,
+                )
+              : HabitLogModel(
+                  date: todayKey,
+                  smokingCount: 0,
+                  detailedSmokingLogs: [],
+                  totalScreenTimeMinutes: 0,
+                  appScreenTimes: {'steps_base': baseSteps},
+                );
+
+          await dbService.habitsLogBox.put(todayKey, updatedLog);
+        }
+
+        final todaySteps = (stepsSinceBoot - baseSteps).clamp(0, 999999);
+        await updateHabit('steps', todaySteps.toDouble());
+      }
+    } catch (_) {}
+  }
+
   Future<void> requestUsagePermission() async {
     try {
-      await _channel.invokeMethod<void>('grantUsagePermission');
+      await _usageChannel.invokeMethod<void>('grantUsagePermission');
       await Future.delayed(const Duration(milliseconds: 1000));
       await _loadTodayHabits();
-      await refreshDigitalWellbeingScreenTime();
+      await refreshAutoMetrics();
     } catch (_) {}
   }
 

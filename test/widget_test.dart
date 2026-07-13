@@ -86,6 +86,12 @@ class FakeHabitsNotifier extends StateNotifier<HabitsState> implements HabitsNot
 
   @override
   Future<void> requestUsagePermission() async {}
+
+  @override
+  Future<void> refreshAutoMetrics() async {}
+
+  @override
+  Future<void> syncNativeSteps() async {}
 }
 
 void main() {

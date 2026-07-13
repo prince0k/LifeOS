@@ -19,6 +19,7 @@ class DatabaseService {
   late final Box<TaskModel> _tasksBox;
   late final Box<HabitLogModel> _habitsLogBox;
   late final Box<ProjectModel> _projectsBox;
+  late final Box<String> _journalsBox;
 
   DatabaseService({FlutterSecureStorage? secureStorage})
       : _secureStorage = secureStorage ?? const FlutterSecureStorage();
@@ -28,6 +29,7 @@ class DatabaseService {
   Box<TaskModel> get tasksBox => _tasksBox;
   Box<HabitLogModel> get habitsLogBox => _habitsLogBox;
   Box<ProjectModel> get projectsBox => _projectsBox;
+  Box<String> get journalsBox => _journalsBox;
 
   // Compaction Strategy: Compact box if deleted entries exceed 50 and make up >30% of total
   bool _compactionStrategy(int entries, int deletedEntries) {
@@ -74,6 +76,11 @@ class DatabaseService {
     );
     _habitsLogBox = await Hive.openBox<HabitLogModel>(
       'habits_log_box',
+      encryptionCipher: cipher,
+      compactionStrategy: _compactionStrategy,
+    );
+    _journalsBox = await Hive.openBox<String>(
+      'journals_box',
       encryptionCipher: cipher,
       compactionStrategy: _compactionStrategy,
     );
