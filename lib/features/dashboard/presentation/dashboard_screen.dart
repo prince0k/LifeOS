@@ -320,14 +320,65 @@ class DashboardScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 32.0),
-        Text(
-          'HABITS & QUICK LOG',
-          style: theme.textTheme.labelMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.2,
-            color: theme.hintColor,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'HABITS & QUICK LOG',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+                color: theme.hintColor,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh, size: 20),
+              onPressed: () {
+                ref.read(habitsProvider.notifier).refreshDigitalWellbeingScreenTime();
+              },
+            ),
+          ],
         ),
+        if (!habitsState.hasUsagePermission) ...[
+          const SizedBox(height: 8.0),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12.0),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12.0),
+              border: Border.all(color: theme.colorScheme.primary.withOpacity(0.2)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: theme.colorScheme.primary, size: 20),
+                const SizedBox(width: 12.0),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Automatic Screen Time',
+                        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4.0),
+                      Text(
+                        'Let LifeOS read your daily screen time automatically from Android Digital Wellbeing.',
+                        style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    ref.read(habitsProvider.notifier).requestUsagePermission();
+                  },
+                  child: const Text('ENABLE'),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 12.0),
         GridView.count(
           crossAxisCount: 2,
@@ -596,7 +647,7 @@ class DashboardScreen extends ConsumerWidget {
         {'time': '11:45 - 12:00', 'title': 'Recovery Check-in', 'desc': 'Log sleep and stats.'},
         {'time': '12:00 - 02:00', 'title': 'Mailing Deep Work (2h)', 'desc': 'Focus on web or SEO.'},
         {'time': '02:00 - 02:30', 'title': 'Lunch', 'desc': 'Nutritional break.'},
-        {'time': '02:30 - 03:30', 'title': 'CityHost Work (1h)', 'desc': 'Video edits or marketing.'},
+        {'time': '14:30 - 15:30', 'title': 'CityHost Work (1h)', 'desc': 'Video edits or marketing.'},
         {'time': '03:30 - 04:00', 'title': 'English Practice', 'desc': 'Focus and study.'},
         {'time': '04:00 - 04:45', 'title': 'Power Nap', 'desc': 'Prepare energy for shift.'},
         {'time': '05:00 - 05:30', 'title': 'Dinner', 'desc': 'Fuel up.'},

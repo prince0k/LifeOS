@@ -80,6 +80,12 @@ class FakeHabitsNotifier extends StateNotifier<HabitsState> implements HabitsNot
 
   @override
   Future<void> incrementHabit(String habitName, int delta) async {}
+
+  @override
+  Future<void> refreshDigitalWellbeingScreenTime() async {}
+
+  @override
+  Future<void> requestUsagePermission() async {}
 }
 
 void main() {
@@ -109,6 +115,7 @@ void main() {
       stepCount: 0,
       pornRecoveryDays: 0,
       totalScreenTime: 0,
+      hasUsagePermission: false,
       isInitialized: true,
     );
 

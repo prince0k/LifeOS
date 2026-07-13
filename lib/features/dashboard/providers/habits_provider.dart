@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:usage_stats/usage_stats.dart';
 import '../../../shared/models/habit_log_model.dart';
 import '../../../shared/providers/database_provider.dart';
 
@@ -9,6 +10,7 @@ class HabitsState {
   final int stepCount;
   final int pornRecoveryDays;
   final int totalScreenTime;
+  final bool hasUsagePermission;
   final bool isInitialized;
 
   HabitsState({
@@ -17,6 +19,7 @@ class HabitsState {
     required this.stepCount,
     required this.pornRecoveryDays,
     required this.totalScreenTime,
+    required this.hasUsagePermission,
     required this.isInitialized,
   });
 
@@ -26,6 +29,7 @@ class HabitsState {
     int? stepCount,
     int? pornRecoveryDays,
     int? totalScreenTime,
+    bool? hasUsagePermission,
     bool? isInitialized,
   }) {
     return HabitsState(
@@ -34,6 +38,7 @@ class HabitsState {
       stepCount: stepCount ?? this.stepCount,
       pornRecoveryDays: pornRecoveryDays ?? this.pornRecoveryDays,
       totalScreenTime: totalScreenTime ?? this.totalScreenTime,
+      hasUsagePermission: hasUsagePermission ?? this.hasUsagePermission,
       isInitialized: isInitialized ?? this.isInitialized,
     );
   }
@@ -49,16 +54,22 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
           stepCount: 0,
           pornRecoveryDays: 0,
           totalScreenTime: 0,
+          hasUsagePermission: false,
           isInitialized: false,
         )) {
     _loadTodayHabits();
+    refreshDigitalWellbeingScreenTime();
   }
 
-  void _loadTodayHabits() {
+  Future<void> _loadTodayHabits() async {
     final dbService = _ref.read(databaseServiceProvider);
     final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     final todayLog = dbService.habitsLogBox.get(todayKey);
+    bool permission = false;
+    try {
+      permission = await UsageStats.checkUsagePermission() ?? false;
+    } catch (_) {}
 
     if (todayLog != null) {
       final water = todayLog.appScreenTimes['water'] ?? 0;
@@ -71,6 +82,7 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
         stepCount: steps,
         pornRecoveryDays: pornRecovery,
         totalScreenTime: todayLog.totalScreenTimeMinutes,
+        hasUsagePermission: permission,
         isInitialized: true,
       );
     } else {
@@ -80,12 +92,43 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
         stepCount: 0,
         pornRecoveryDays: 0,
         totalScreenTime: 0,
+        hasUsagePermission: permission,
         isInitialized: true,
       );
     }
   }
 
-  Future<void> incrementHabit(String habitName, int delta) async {
+  Future<void> refreshDigitalWellbeingScreenTime() async {
+    try {
+      final isGranted = await UsageStats.checkUsagePermission();
+      if (isGranted == true) {
+        final DateTime endDate = DateTime.now();
+        final DateTime startDate = DateTime(endDate.year, endDate.month, endDate.day);
+        
+        final List<UsageInfo> infos = await UsageStats.queryUsageStats(startDate, endDate);
+        
+        double totalMins = 0;
+        for (var info in infos) {
+          final timeMs = double.tryParse(info.totalTimeInForeground ?? '0') ?? 0.0;
+          totalMins += timeMs / 1000 / 60;
+        }
+
+        if (totalMins > 0) {
+          await updateHabit('screen_time', totalMins.roundToDouble());
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> requestUsagePermission() async {
+    try {
+      await UsageStats.grantUsagePermission();
+      await _loadTodayHabits();
+      await refreshDigitalWellbeingScreenTime();
+    } catch (_) {}
+  }
+
+  Future<void> updateHabit(String habitName, double value) async {
     final dbService = _ref.read(databaseServiceProvider);
     final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
@@ -98,12 +141,11 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
       int updatedScreenTime = existingLog.totalScreenTimeMinutes;
 
       if (habitName == 'cigarettes') {
-        updatedSmokingCount = (updatedSmokingCount + delta).clamp(0, 99999);
+        updatedSmokingCount = value.toInt().clamp(0, 99999);
       } else if (habitName == 'screen_time') {
-        updatedScreenTime = (updatedScreenTime + delta).clamp(0, 999999);
+        updatedScreenTime = value.toInt().clamp(0, 999999);
       } else {
-        final currentVal = updatedAppScreenTimes[habitName] ?? 0;
-        updatedAppScreenTimes[habitName] = (currentVal + delta).clamp(0, 999999);
+        updatedAppScreenTimes[habitName] = value.toInt().clamp(0, 999999);
       }
 
       logToUpdate = HabitLogModel(
@@ -119,11 +161,11 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
       int screenTime = 0;
 
       if (habitName == 'cigarettes') {
-        smokingCount = delta.clamp(0, 99999);
+        smokingCount = value.toInt().clamp(0, 99999);
       } else if (habitName == 'screen_time') {
-        screenTime = delta.clamp(0, 999999);
+        screenTime = value.toInt().clamp(0, 999999);
       } else {
-        appScreenTimes[habitName] = delta.clamp(0, 999999);
+        appScreenTimes[habitName] = value.toInt().clamp(0, 999999);
       }
 
       logToUpdate = HabitLogModel(
@@ -137,6 +179,24 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
 
     await dbService.habitsLogBox.put(todayKey, logToUpdate);
     _loadTodayHabits();
+  }
+
+  Future<void> incrementHabit(String habitName, int delta) async {
+    int currentValue = 0;
+    if (habitName == 'water') {
+      currentValue = state.waterCups;
+    } else if (habitName == 'cigarettes') {
+      currentValue = state.cigaretteCount;
+    } else if (habitName == 'steps') {
+      currentValue = state.stepCount;
+    } else if (habitName == 'porn_recovery') {
+      currentValue = state.pornRecoveryDays;
+    } else if (habitName == 'screen_time') {
+      currentValue = state.totalScreenTime;
+    }
+
+    final targetValue = (currentValue + delta).clamp(0, 999999);
+    await updateHabit(habitName, targetValue.toDouble());
   }
 }
 
