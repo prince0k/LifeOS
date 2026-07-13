@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifeos/shared/models/recovery_state.dart';
 import 'package:lifeos/features/recovery/providers/recovery_provider.dart';
 import 'package:lifeos/features/dashboard/providers/tasks_provider.dart';
+import 'package:lifeos/features/dashboard/providers/habits_provider.dart';
 import 'package:lifeos/shared/models/task_model.dart';
 import 'widgets/recovery_gauge.dart';
 import 'widgets/state_banner.dart';
@@ -16,6 +17,7 @@ class DashboardScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final recoveryState = ref.watch(recoveryProvider);
     final tasksState = ref.watch(tasksProvider);
+    final habitsState = ref.watch(habitsProvider);
 
     final activeState = recoveryState.activeState;
     final todayLog = recoveryState.todayLog;
@@ -52,10 +54,16 @@ class DashboardScreen extends ConsumerWidget {
                   score: todayLog.computedRecoveryScore,
                   baseColor: stateColor,
                 ),
+
+                // Smart Recommendation Card
+                _buildSmartRecommendation(context, activeState, todayLog.computedRecoveryScore),
                 const SizedBox(height: 32.0),
 
                 // Wellness Summary details
                 _buildSummaryGrid(context, todayLog),
+
+                // Habits Quick Log Section
+                _buildQuickLogSection(context, ref, habitsState),
 
                 // 3. Active Shift Timetable
                 _buildScheduleTimeline(context, activeState, todayLog.shiftTemplateName ?? 'Morning Shift'),
@@ -189,6 +197,216 @@ class DashboardScreen extends ConsumerWidget {
             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             overflow: TextOverflow.ellipsis,
           )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSmartRecommendation(BuildContext context, RecoveryState state, double score) {
+    final theme = Theme.of(context);
+    final String recommendation;
+    final IconData icon;
+    final Color cardBg;
+    final Color textColor;
+
+    if (state == RecoveryState.burnoutRisk) {
+      recommendation = "⚠️ BURNOUT RISK ACTIVATE:\nAll work tasks are suppressed today. Prioritize sleeping, light walking, hydration, and write a Brain Dump to offload overthinking.";
+      icon = Icons.health_and_safety;
+      cardBg = Colors.red.withOpacity(0.08);
+      textColor = Colors.red;
+    } else if (score < 50) {
+      recommendation = "💡 LOW CAPACITY DETECTED:\nWe recommend reducing your Deep Work targets. Focus only on Mailing SEO tasks. CityHost campaign activities are optional today.";
+      icon = Icons.lightbulb_outline;
+      cardBg = Colors.orange.withOpacity(0.08);
+      textColor = Colors.orange;
+    } else if (score < 70) {
+      recommendation = "💡 SUB-OPTIMAL RECOVERY:\nYour energy is slightly reduced. Focus on shift duties first, and limit deep work to 2 hours. Try to get a 20-minute walk to recharge.";
+      icon = Icons.lightbulb_outline;
+      cardBg = Colors.blue.withOpacity(0.08);
+      textColor = Colors.blue;
+    } else {
+      recommendation = "🚀 PEAK PERFORMANCE LOADED:\nExcellent score! Full deep work capacity is loaded. We recommend starting with Mailing Website Dev first, then CityHost video editing.";
+      icon = Icons.rocket_launch_outlined;
+      cardBg = Colors.green.withOpacity(0.08);
+      textColor = Colors.green;
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 24.0),
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16.0),
+        border: Border.all(color: textColor.withOpacity(0.2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: textColor, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "ADAPTIVE DECISION SUPPORT",
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  recommendation,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickLogSection(BuildContext context, WidgetRef ref, dynamic habitsState) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 32.0),
+        Text(
+          'HABITS & QUICK LOG',
+          style: theme.textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+            color: theme.hintColor,
+          ),
+        ),
+        const SizedBox(height: 12.0),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12.0,
+          crossAxisSpacing: 12.0,
+          childAspectRatio: 1.3,
+          children: [
+            // Cigarettes smoked Quick Log
+            _buildHabitItem(
+              context,
+              title: 'Cigarettes',
+              value: '${habitsState.cigaretteCount} smoked',
+              icon: Icons.smoke_free,
+              color: Colors.red,
+              onTap: () {
+                ref.read(habitsProvider.notifier).incrementHabit('cigarettes', 1);
+              },
+              actionLabel: '+1 Cigarette',
+            ),
+            // Water Intake Tracker
+            _buildHabitItem(
+              context,
+              title: 'Water Intake',
+              value: '${habitsState.waterCups} cups',
+              icon: Icons.local_drink,
+              color: Colors.blue,
+              onTap: () {
+                ref.read(habitsProvider.notifier).incrementHabit('water', 1);
+              },
+              actionLabel: '+1 Cup',
+            ),
+            // Steps log
+            _buildHabitItem(
+              context,
+              title: 'Steps Walked',
+              value: '${habitsState.stepCount} steps',
+              icon: Icons.directions_walk,
+              color: Colors.green,
+              onTap: () {
+                ref.read(habitsProvider.notifier).incrementHabit('steps', 1000);
+              },
+              actionLabel: '+1k Steps',
+            ),
+            // Porn Recovery Streak tracker
+            _buildHabitItem(
+              context,
+              title: 'Porn Recovery',
+              value: '${habitsState.pornRecoveryDays} days',
+              icon: Icons.shield_moon_outlined,
+              color: Colors.purple,
+              onTap: () {
+                ref.read(habitsProvider.notifier).incrementHabit('porn_recovery', 1);
+              },
+              actionLabel: '+1 Day',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHabitItem(
+    BuildContext context, {
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    required String actionLabel,
+  }) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16.0),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.03)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: color),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          Text(
+            value,
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          SizedBox(
+            width: double.infinity,
+            height: 28,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color.withOpacity(0.12),
+                foregroundColor: color,
+                elevation: 0,
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: onTap,
+              child: Text(
+                actionLabel,
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
         ],
       ),
     );

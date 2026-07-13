@@ -6,6 +6,7 @@ import 'package:lifeos/shared/models/recovery_state.dart';
 import 'package:lifeos/features/settings/providers/settings_provider.dart';
 import 'package:lifeos/features/recovery/providers/recovery_provider.dart';
 import 'package:lifeos/features/dashboard/providers/tasks_provider.dart';
+import 'package:lifeos/features/dashboard/providers/habits_provider.dart';
 import 'package:lifeos/shared/models/settings_model.dart';
 
 // Fake Notifier for Settings
@@ -68,6 +69,19 @@ class FakeTasksNotifier extends StateNotifier<TasksState> implements TasksNotifi
   Future<void> deleteTask(String taskId) async {}
 }
 
+// Fake Notifier for Habits
+class FakeHabitsNotifier extends StateNotifier<HabitsState> implements HabitsNotifier {
+  final HabitsState _initialState;
+
+  FakeHabitsNotifier(this._initialState) : super(_initialState);
+
+  @override
+  Future<void> updateHabit(String habitName, double value) async {}
+
+  @override
+  Future<void> incrementHabit(String habitName, int delta) async {}
+}
+
 void main() {
   testWidgets('LifeOS app renders Dashboard Screen with mock providers', (WidgetTester tester) async {
     final mockSettings = SettingsModel(
@@ -89,6 +103,14 @@ void main() {
       isInitialized: true,
     );
 
+    final mockHabitsState = HabitsState(
+      waterCups: 0,
+      cigaretteCount: 0,
+      stepCount: 0,
+      pornRecoveryDays: 0,
+      isInitialized: true,
+    );
+
     // Build the app with overridden providers
     await tester.pumpWidget(
       ProviderScope(
@@ -96,6 +118,7 @@ void main() {
           settingsProvider.overrideWith(() => FakeSettingsNotifier(mockSettings)),
           recoveryProvider.overrideWith(() => FakeRecoveryNotifier(mockRecoveryState)),
           tasksProvider.overrideWith((ref) => FakeTasksNotifier(mockTasksState)),
+          habitsProvider.overrideWith((ref) => FakeHabitsNotifier(mockHabitsState)),
         ],
         child: const MyApp(),
       ),
