@@ -29,13 +29,14 @@ class RecoveryModelAdapter extends TypeAdapter<RecoveryModel> {
       checkedMentalActivities: (fields[9] as List).cast<String>(),
       computedRecoveryScore: fields[10] as double,
       computedState: fields[11] as String,
+      shiftTemplateName: fields[12] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, RecoveryModel obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.date)
       ..writeByte(1)
@@ -59,7 +60,9 @@ class RecoveryModelAdapter extends TypeAdapter<RecoveryModel> {
       ..writeByte(10)
       ..write(obj.computedRecoveryScore)
       ..writeByte(11)
-      ..write(obj.computedState);
+      ..write(obj.computedState)
+      ..writeByte(12)
+      ..write(obj.shiftTemplateName);
   }
 
   @override

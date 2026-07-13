@@ -11,6 +11,7 @@ class CheckInSheet extends ConsumerStatefulWidget {
 }
 
 class _CheckInSheetState extends ConsumerState<CheckInSheet> {
+  String _selectedShiftTemplate = 'Morning Shift';
   String _sleepStart = '23:00';
   String _sleepEnd = '07:30';
   int _nightWakeUps = 0;
@@ -23,6 +24,7 @@ class _CheckInSheetState extends ConsumerState<CheckInSheet> {
   final List<String> _checkedMentalActivities = [];
 
   final List<String> _moods = ['Happy', 'Peaceful', 'Muted', 'Tired', 'Anxious', 'Stressed'];
+  final List<String> _shiftTemplates = ['Morning Shift', 'Night Shift', '12-Hour Shift', 'Off Day'];
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +61,31 @@ class _CheckInSheetState extends ConsumerState<CheckInSheet> {
               style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24.0),
+
+            // 0. Active Shift Template Dropdown
+            Text('Active Shift Template', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8.0),
+            DropdownButtonFormField<String>(
+              value: _selectedShiftTemplate,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: theme.cardColor,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              items: _shiftTemplates.map((shift) {
+                return DropdownMenuItem<String>(
+                  value: shift,
+                  child: Text(shift),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) setState(() => _selectedShiftTemplate = val);
+              },
+            ),
+            const SizedBox(height: 20.0),
 
             // 1. Sleep Start & End Time Picker triggers
             Text('Sleep Window', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
@@ -223,7 +250,7 @@ class _CheckInSheetState extends ConsumerState<CheckInSheet> {
                     mood: _selectedMood,
                     checkedPhysicalActivities: _checkedPhysicalActivities,
                     checkedMentalActivities: _checkedMentalActivities,
-                    currentShiftTemplateName: 'Morning Shift', // Default template for today
+                    currentShiftTemplateName: _selectedShiftTemplate,
                   );
                   if (mounted) Navigator.pop(context);
                 },

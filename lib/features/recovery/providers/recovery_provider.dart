@@ -129,6 +129,7 @@ class RecoveryNotifier extends Notifier<RecoveryStateData> {
       checkedMentalActivities: checkedMentalActivities,
       computedRecoveryScore: computedRecoveryScore,
       computedState: activeState.name,
+      shiftTemplateName: currentShiftTemplateName,
     );
 
     await dbService.recoveryLogBox.put(todayKey, newLog);
@@ -158,6 +159,7 @@ class RecoveryNotifier extends Notifier<RecoveryStateData> {
         checkedMentalActivities: state.todayLog!.checkedMentalActivities,
         computedRecoveryScore: state.todayLog!.computedRecoveryScore,
         computedState: newState.name,
+        shiftTemplateName: state.todayLog!.shiftTemplateName,
       );
       await dbService.recoveryLogBox.put(todayKey, updatedLog);
       state = state.copyWith(

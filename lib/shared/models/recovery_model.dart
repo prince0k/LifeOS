@@ -40,6 +40,9 @@ class RecoveryModel extends HiveObject {
   @HiveField(11)
   final String computedState;
 
+  @HiveField(12)
+  final String? shiftTemplateName;
+
   RecoveryModel({
     required this.date,
     required this.sleepStartTime,
@@ -53,5 +56,6 @@ class RecoveryModel extends HiveObject {
     required this.checkedMentalActivities,
     required this.computedRecoveryScore,
     required this.computedState,
+    this.shiftTemplateName = 'Morning Shift',
   });
 }
